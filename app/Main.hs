@@ -22,4 +22,4 @@ main = do
     serve HostAny port $ \(socket, address) -> do
         putStrLn $ "successfully connected client: " ++ show address
         send socket $ BC.pack "+PONG\r\n" 
-        closeSock socket
+        --closeSock socket
