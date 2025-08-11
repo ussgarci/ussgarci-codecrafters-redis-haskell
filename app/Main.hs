@@ -4,7 +4,8 @@
 
 module Main (main) where
 
-import Network.Simple.TCP (serve, HostPreference(HostAny), closeSock)
+import qualified Data.ByteString.Char8 as BC
+import Network.Simple.TCP (serve, HostPreference(HostAny), closeSock, send)
 import System.IO (hPutStrLn, hSetBuffering, stdout, stderr, BufferMode(NoBuffering))
 
 main :: IO ()
@@ -20,4 +21,5 @@ main = do
     putStrLn $ "Redis server listening on port " ++ port
     serve HostAny port $ \(socket, address) -> do
         putStrLn $ "successfully connected client: " ++ show address
+        send socket $ BC.pack "+PONG\r\n" 
         closeSock socket
