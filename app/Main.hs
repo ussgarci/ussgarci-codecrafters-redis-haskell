@@ -14,6 +14,7 @@ import Data.Word (Word8)
 import Network.Simple.TCP (serve, HostPreference(HostAny), closeSock, send, recv)
 import System.IO (hPutStrLn, hSetBuffering, stdout, stderr, BufferMode(NoBuffering))
 
+validCommands = ["PING"]
 
 charCodesMap :: M.Map Char Word8
 charCodesMap =
@@ -50,9 +51,13 @@ main = do
         buffer <- recv socket 4096
         case buffer of
             Just request -> do
+                print "REQUEST:"
+                print request
                 let cmds = splitOnCRLF request
                 print cmds
                 print $ length cmds
+                let cmds' = filter (`elem` validCommands) cmds
+                print cmds'
                 replicateM_ (length cmds) (send socket $ C8.pack "+PONG\r\n")
             Nothing -> closeSock socket
             --send socket $ BC.pack "+PONG\r\n" 
