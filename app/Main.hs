@@ -58,7 +58,7 @@ main = do
                 print $ length cmds
                 let cmds' = filter (`elem` validCommands) cmds
                 print cmds'
-                replicateM_ (length cmds) (send socket $ C8.pack "+PONG\r\n")
+                replicateM_ (length cmds') (send socket $ C8.pack "+PONG\r\n")
             Nothing -> closeSock socket
             --send socket $ BC.pack "+PONG\r\n" 
             ----closeSock socket
