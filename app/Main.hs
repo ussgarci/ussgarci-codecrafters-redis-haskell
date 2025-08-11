@@ -5,8 +5,9 @@
 module Main (main) where
 
 import Control.Monad (replicateM_)
-import qualified Data.ByteString.Char8 as BC
+import qualified Data.ByteString.Char8 as C8
 import qualified Data.ByteString as B
+-- import Data.List.Split (splitOn)
 import Data.Char (ord)
 import qualified Data.Map as M
 import Data.Word (Word8)
@@ -22,6 +23,14 @@ charCodesMap =
         , ('\r', fromIntegral (ord '\r') :: Word8)
         , ('\n', fromIntegral (ord '\n') :: Word8)
         ]
+
+splitOnCRLF :: B.ByteString -> [B.ByteString]
+splitOnCRLF xs =
+    let (cmd, rest) = B.breakSubstring "\r\n" xs
+    in
+        if B.null rest
+        then []
+        else cmd : splitOnCRLF (B.drop 2 rest)
 
 main :: IO ()
 main = do
@@ -41,10 +50,10 @@ main = do
         buffer <- recv socket 4096
         case buffer of
             Just request -> do
-                --let cmds = B.splitWith (\x -> x == charCodesMap M.! '\r' || x ==  charCodesMap M.! '\n') request
-                let cmdCount = B.count (charCodesMap M.! '\r') request
-                print cmdCount
-                replicateM_ cmdCount (send socket $ BC.pack "+PONG\r\n")
+                let cmds = splitOnCRLF request
+                print cmds
+                print $ length cmds
+                replicateM_ (length cmds) (send socket $ C8.pack "+PONG\r\n")
             Nothing -> closeSock socket
             --send socket $ BC.pack "+PONG\r\n" 
             ----closeSock socket
