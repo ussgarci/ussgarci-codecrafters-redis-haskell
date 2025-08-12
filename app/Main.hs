@@ -4,7 +4,7 @@
 
 module Main (main) where
 
-import Control.Monad (replicateM_)
+import Control.Monad (replicateM_, forever)
 import qualified Data.ByteString.Char8 as C8
 import qualified Data.ByteString as B
 -- import Data.List.Split (splitOn)
@@ -44,24 +44,21 @@ main = do
 
     let port = "6379"
     putStrLn $ "Redis server listening on port " ++ port
-    serve HostAny port $ \(socket, address) -> do
+    serve HostAny port $ \(socket, address) -> do 
         putStrLn $ "successfully connected client: " ++ show address
-
-        -- read chunk of data into a buffer
-        buffer <- recv socket 4096
-        case buffer of
-            Just request -> do
-                print "REQUEST:"
-                print request
-                let cmds = splitOnCRLF request
-                print cmds
-                print $ length cmds
-                let cmds' = filter (`elem` validCommands) cmds
-                print cmds'
-                replicateM_ (length cmds') (send socket $ C8.pack "+PONG\r\n")
-            Nothing -> closeSock socket
-            --send socket $ BC.pack "+PONG\r\n" 
-            ----closeSock socket
-            --putStrLn $ "request: " ++ show request
-            --send socket $ BC.pack "+PONG\r\n" 
-            ----closeSock socket
+        loop socket  
+        where
+            loop socket = do
+                -- read chunk of data into a buffer
+                buffer <- recv socket 4096
+                case buffer of
+                    Just request -> do
+                        print "REQUEST:"
+                        print request
+                        let cmds = splitOnCRLF request
+                        let cmds' = filter (`elem` validCommands) cmds
+                        print (length cmds')
+                        print cmds'
+                        replicateM_ (length cmds') (send socket $ C8.pack "+PONG\r\n")
+                        loop socket 
+                    Nothing -> closeSock socket
