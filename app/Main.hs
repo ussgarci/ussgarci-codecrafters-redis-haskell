@@ -21,24 +21,6 @@ import System.IO (BufferMode (NoBuffering), hPutStrLn, hSetBuffering, stderr, st
 import qualified Text.Megaparsec as MP
 import qualified Text.Megaparsec.Byte as MPB
 
-validCommands = ["PING"]
-
-charCodesMap :: M.Map Char Word8
-charCodesMap =
-    M.fromList
-        [ (' ', fromIntegral (ord ' ') :: Word8)
-        , (':', fromIntegral (ord ':') :: Word8)
-        , ('\r', fromIntegral (ord '\r') :: Word8)
-        , ('\n', fromIntegral (ord '\n') :: Word8)
-        ]
-
-splitOnCRLF :: B.ByteString -> [B.ByteString]
-splitOnCRLF xs =
-    let (cmd, rest) = B.breakSubstring "\r\n" xs
-     in if B.null rest
-            then []
-            else cmd : splitOnCRLF (B.drop 2 rest)
-
 processCommand :: Socket -> RedisRequest -> StateT AppState IO ()
 processCommand socket (RedisRequest{_command = "PING"}) = send socket $ C8.pack "+PONG\r\n"
 processCommand _ _ = undefined
