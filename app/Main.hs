@@ -1,7 +1,8 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+
 {-# HLINT ignore "Redundant bracket" #-}
 
 module Main (main) where
@@ -35,11 +36,11 @@ scan socket = do
     case buffer of
         Just request -> do
             -- prev <- _buffer <$> get
-            liftIO $ print ("request: "  <> request)
+            liftIO $ print ("request: " <> request)
             prev <- gets _buffer
-            liftIO $ print ("prev: "  <> prev)
+            liftIO $ print ("prev: " <> prev)
             let combined = prev <> request
-            liftIO $ print ("combined: "  <> combined)
+            liftIO $ print ("combined: " <> combined)
             case MP.runParser ((,) <$> parseRequest <*> MP.getInput) "" combined of
                 Left err -> do
                     liftIO $ print "error"

@@ -1,17 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser.RedisRequest (RedisRequest (..), parseRequest)
+module Parser.RedisRequest (RedisRequest (..), parseRequest, parseArrayPrefix, parseBulkString)
 where
 
+import Control.Monad (fail, replicateM)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
-import Data.Char (ord, isNumber)
+import Data.Char (isNumber, ord)
 import qualified Data.Map as M
 import Data.Void (Void)
 import Data.Word (Word8)
-import qualified Text.Megaparsec as MP
-import qualified Text.Megaparsec.Byte as MPB
 import GHC.Integer (eqInteger)
+import Text.Megaparsec
+import qualified Text.Megaparsec.Byte as MPB
+import Prelude hiding (take)
 
 charCodesMap =
     M.fromList
@@ -30,36 +32,44 @@ newtype RedisRequest = RedisRequest
     }
     deriving (Show)
 
-type Parser = MP.Parsec Void BC.ByteString
+type Parser = Parsec Void BC.ByteString
 
 parseCommand :: Parser RedisRequest
 parseCommand = do
-    cmd <- MP.choice [MPB.string "PING"]
+    cmd <- choice [MPB.string "PING"]
     _ <- MPB.crlf
     return $ RedisRequest cmd
 
 parseArrayPrefix :: Parser Integer
 parseArrayPrefix = do
     MPB.char (charCodesMap M.! '*')
-    count <- MP.takeWhile1P (Just "array prefix") (`elem` w8Numbers)
+    count <- takeWhile1P (Just "array prefix") (`elem` w8Numbers)
     _ <- MPB.crlf
     case BC.readInteger count of
         Just (i, _) -> return i
-        _ -> undefined 
+        _ -> fail "failed to parse array prefix"
 
 parseBulkString :: Parser Integer
 parseBulkString = do
     MPB.char (charCodesMap M.! '$')
-    count <- MP.takeWhile1P (Just "bulk string") (`elem` w8Numbers)
+    count <- takeWhile1P (Just "bulk string") (`elem` w8Numbers)
     _ <- MPB.crlf
     case BC.readInteger count of
         Just (i, _) -> return i
-        _ -> undefined 
+        _ -> fail "failed to parse bulk string"
+
+parseArrayCommand :: Parser [RedisRequest]
+parseArrayCommand = do
+    count <- parseArrayPrefix
+    replicateM (fromInteger count) $ do
+        len <- parseBulkString
+        str <- takeP Nothing (fromInteger len)
+        _ <- MPB.crlf
+        if str == "PING"
+            then return (RedisRequest str)
+            else fail ("Unsupported command: " <> show str)
 
 parseRequest :: Parser [RedisRequest]
-parseRequest = do
-    -- try to parse the array prefix if it's there
-    -- if it is, call parse bulk string n times
-    -- then parse commands n times
-    -- otherwise parse inline command
-    MP.many $ MP.try parseCommand
+parseRequest =
+    try parseArrayCommand
+        <|> many (try parseCommand)
