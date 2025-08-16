@@ -4,6 +4,7 @@ module Parser.RedisRequest (RedisRequest (..), parseRequest, parseArrayPrefix, p
 where
 
 import Control.Monad (fail, replicateM)
+import Data.Attoparsec.ByteString.Char8 (isDigit_w8)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import Data.Char (isNumber, ord)
@@ -25,10 +26,9 @@ charCodesMap =
         , ('$', fromIntegral (ord '$') :: Word8)
         ]
 
-w8Numbers = map (\x -> fromIntegral (ord x) :: Word8) ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-
-newtype RedisRequest = RedisRequest
-    { _command :: BC.ByteString
+data RedisRequest = RedisRequest
+    { _name :: BC.ByteString
+    , _args :: [BC.ByteString]
     }
     deriving (Show)
 
@@ -36,14 +36,14 @@ type Parser = Parsec Void BC.ByteString
 
 parseCommand :: Parser RedisRequest
 parseCommand = do
-    cmd <- choice [MPB.string "PING"]
+    str <- takeWhile1P (Just "redis command") (/= (charCodesMap M.! '\r'))
     _ <- MPB.crlf
-    return $ RedisRequest cmd
+    return $ RedisRequest str []
 
 parseArrayPrefix :: Parser Integer
 parseArrayPrefix = do
     MPB.char (charCodesMap M.! '*')
-    count <- takeWhile1P (Just "array prefix") (`elem` w8Numbers)
+    count <- takeWhile1P (Just "array prefix") isDigit_w8
     _ <- MPB.crlf
     case BC.readInteger count of
         Just (i, _) -> return i
@@ -52,7 +52,7 @@ parseArrayPrefix = do
 parseBulkString :: Parser Integer
 parseBulkString = do
     MPB.char (charCodesMap M.! '$')
-    count <- takeWhile1P (Just "bulk string") (`elem` w8Numbers)
+    count <- takeWhile1P (Just "bulk string") isDigit_w8
     _ <- MPB.crlf
     case BC.readInteger count of
         Just (i, _) -> return i
@@ -65,9 +65,7 @@ parseArrayCommand = do
         len <- parseBulkString
         str <- takeP Nothing (fromInteger len)
         _ <- MPB.crlf
-        if str == "PING"
-            then return (RedisRequest str)
-            else fail ("Unsupported command: " <> show str)
+        return (RedisRequest str [])
 
 parseRequest :: Parser [RedisRequest]
 parseRequest =

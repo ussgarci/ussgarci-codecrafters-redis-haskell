@@ -23,7 +23,7 @@ import qualified Text.Megaparsec as MP
 import qualified Text.Megaparsec.Byte as MPB
 
 processCommand :: Socket -> RedisRequest -> StateT AppState IO ()
-processCommand socket (RedisRequest{_command = "PING"}) = send socket $ C8.pack "+PONG\r\n"
+processCommand socket (RedisRequest{_name = "PING"}) = send socket $ C8.pack "+PONG\r\n"
 processCommand _ _ = undefined
 
 newtype AppState = AppState
